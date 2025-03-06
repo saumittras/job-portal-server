@@ -40,10 +40,16 @@ async function run() {
 
     // to load all jobs data
     app.get("/jobs", async (req, res) => {
-      const result = await jobsCollection.find().toArray();
-      // console.log(result);
+      const email = req.query.email;
+      let query = {};
+
+      if (email){
+        query={hr_email: email};
+      }
+      const result = await jobsCollection.find(query).toArray();
       res.send(result);
     });
+
 
     // API to get job Details
     app.get("/jobs/:id", async (req, res) => {
@@ -61,6 +67,13 @@ async function run() {
       console.log(result);
       res.send(result);
     });
+
+    // API for add a JOB
+    app.post('/jobs', async(req, res)=>{
+      const newJob = req.body;
+      const result = await jobsCollection.insertOne(newJob)
+      res.send(result)
+    })
 
     // get my Job Application
     app.get("/job-application", async (req, res) => {
