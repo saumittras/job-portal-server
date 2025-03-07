@@ -1,13 +1,21 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 const app = express();
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+
+// midleware
+app.use(cors({
+  origin: ['http://localhost:5173'],
+  credentials:true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // api section start from here
 
@@ -32,11 +40,24 @@ async function run() {
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
 
-    // Job Related API
+    // Job Related API and collections
     const jobsCollection = client.db("jobHub").collection("jobs");
     const applicationCollection = client
       .db("jobHub")
       .collection("job_applications");
+
+
+    // Auth related API
+    app.post('/jwt', async(req, res)=>{
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET,{expiresIn: '1h'})
+      res
+      .cookie('token', token,{
+        httpOnly: true,
+        secure: false, //http://localhost:5173/signin
+      }).send({success:true})
+    })
+
 
     // to load all jobs data
     app.get("/jobs", async (req, res) => {
@@ -113,6 +134,8 @@ async function run() {
       const email = req.query.email;
       const query = { applicant_email: email };
       const result = await applicationCollection.find(query).toArray();
+      
+      console.log("cookes from client my application data request", req.cookies)
 
       // simple aggreget data
       for (const application of result) {
