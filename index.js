@@ -17,6 +17,30 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+
+const logger = (req, res, next)=>{
+  console.log("insilde the logger");
+  next();
+}
+
+const verifyToken = (req,res,next)=>{
+  // console.log("insile verify token middleware", req.cookies);
+  const token = req?.cookies?.token;
+  console.log("token from req", token)
+  if(!token){
+    return res.status(401).send({message: 'Unauthorized Access'});
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET,(err, decoded)=>{
+    if(err){
+      return res.status(401).send({message: "Unathorized access"})
+    }
+    next();
+
+  } )
+
+}
+
 // api section start from here
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.s8hxf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -130,7 +154,7 @@ async function run() {
     })
 
     // get my Job Application
-    app.get("/job-application", async (req, res) => {
+    app.get("/job-application",verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { applicant_email: email };
       const result = await applicationCollection.find(query).toArray();
