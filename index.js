@@ -62,9 +62,34 @@ async function run() {
     //Job application API
     app.post("/job-applications", async (req, res) => {
       const newApplication = req.body;
-      console.log(newApplication);
+      // console.log(newApplication);
       const result = await applicationCollection.insertOne(newApplication);
-      console.log(result);
+      // console.log(result);
+
+      // Not the best way (the best way is aggregate)
+      const id = newApplication.job_id;
+      const query = {_id: new ObjectId(id)};
+      const job = await jobsCollection.find(query);
+      // console.log(job)
+      let newCount = 0;
+      if(job.applicationCount){
+        newCount = job.applicationCount+1;
+      }
+      else{
+        newCount= 1
+      }
+
+      // Now Update the job Info
+      const filter = {_id: new ObjectId(id)}
+
+      const updatedDoc ={
+        $set:{
+          applicationCount: newCount,
+        }
+      }
+      const updatedResult = await jobsCollection.updateOne(filter, updatedDoc)
+
+
       res.send(result);
     });
 
@@ -72,6 +97,14 @@ async function run() {
     app.post('/jobs', async(req, res)=>{
       const newJob = req.body;
       const result = await jobsCollection.insertOne(newJob)
+      res.send(result)
+    })
+
+    // to get Applications API for specific Job
+    app.get('/job-applications/jobs/:job_id', async(req, res)=>{
+      const jobId = req.params.job_id
+      const query = {job_id: jobId}
+      const result = await applicationCollection.find(query).toArray()
       res.send(result)
     })
 
@@ -83,10 +116,8 @@ async function run() {
 
       // simple aggreget data
       for (const application of result) {
-        console.log(application.job_id);
         const query_1 = { _id: new ObjectId(application.job_id) };
         const job = await jobsCollection.findOne(query_1);
-
         if (job) {
           application.job = job.title;
           application.company = job.company;
@@ -94,9 +125,22 @@ async function run() {
           application.company_logo = job.company_logo;
         }
       }
-
       res.send(result);
     });
+
+    // patch status API
+    app.patch('/job-application/:id', async(req,res)=>{
+      const id = req.params.id
+      const data = req.body
+      const filter = {_id: new ObjectId(id)}
+      const updatedDoc = {
+        $set:{
+          status: data.status
+        }
+      }
+      const result = await applicationCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
