@@ -35,6 +35,7 @@ const verifyToken = (req,res,next)=>{
     if(err){
       return res.status(401).send({message: "Unathorized access"})
     }
+    req.user = decoded;
     next();
 
   } )
@@ -82,12 +83,22 @@ async function run() {
       }).send({success:true})
     })
 
+    // clear cookies after logout
+
+    app.post('/logout', (req, res)=>{
+
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: false
+      })
+      .send({success: true})
+    })
+
 
     // to load all jobs data
-    app.get("/jobs", async (req, res) => {
+    app.get("/jobs",verifyToken, async (req, res) => {
       const email = req.query.email;
       let query = {};
-
       if (email){
         query={hr_email: email};
       }
@@ -133,8 +144,6 @@ async function run() {
         }
       }
       const updatedResult = await jobsCollection.updateOne(filter, updatedDoc)
-
-
       res.send(result);
     });
 
@@ -157,10 +166,12 @@ async function run() {
     app.get("/job-application",verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { applicant_email: email };
-      const result = await applicationCollection.find(query).toArray();
-      
-      console.log("cookes from client my application data request", req.cookies)
 
+      if(req.user.email !==req.query.email){
+        return res.status(403).send({message: "Forbiden Access"})
+      }
+
+      const result = await applicationCollection.find(query).toArray();
       // simple aggreget data
       for (const application of result) {
         const query_1 = { _id: new ObjectId(application.job_id) };
